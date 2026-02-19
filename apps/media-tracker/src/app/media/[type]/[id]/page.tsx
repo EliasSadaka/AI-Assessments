@@ -16,6 +16,13 @@ type Review = {
   username?: string;
 };
 
+type CollectionItem = {
+  id: string;
+  tmdb_id: number;
+  media_type: MediaType;
+  status: CollectionStatus;
+};
+
 function renderStars(rating: number) {
   return (
     <span className="inline-flex items-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
@@ -37,11 +44,12 @@ export default function MediaDetailsPage() {
   const [stars, setStars] = useState(3);
   const [message, setMessage] = useState<string | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [collectionItem, setCollectionItem] = useState<CollectionItem | null>(null);
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
-      const [detailsRes, creditsRes, reviewsRes, myReviewRes] =
+      const [detailsRes, creditsRes, reviewsRes, myReviewRes, collectionRes] =
         await Promise.all([
           fetch(`/api/tmdb/details/${params.type}/${params.id}`),
           fetch(`/api/tmdb/credits/${params.type}/${params.id}`),
@@ -49,6 +57,7 @@ export default function MediaDetailsPage() {
           fetch(
             `/api/reviews?mine=1&tmdb_id=${params.id}&media_type=${params.type}`,
           ),
+          fetch(`/api/collection?media_type=${params.type}`),
         ]);
       const detailsData = (await detailsRes.json()) as {
         details?: NormalizedMediaItem;
@@ -60,10 +69,22 @@ export default function MediaDetailsPage() {
       const myReviewData = (await myReviewRes.json()) as {
         review?: { review_text: string; star_rating: number } | null;
       };
+      const collectionData = (await collectionRes.json()) as {
+        items?: CollectionItem[];
+      };
+
+      const currentTmdbId = Number(params.id);
+      const existingItem = (collectionData.items ?? []).find(
+        (item) => item.tmdb_id === currentTmdbId && item.media_type === params.type,
+      );
 
       setDetails(detailsData.details ?? null);
       setCreator(creditsData.creator ?? null);
       setReviews(reviewsData.reviews ?? []);
+      setCollectionItem(existingItem ?? null);
+      if (existingItem) {
+        setStatus(existingItem.status);
+      }
       if (myReviewData.review) {
         setReviewText(myReviewData.review.review_text);
         setStars(myReviewData.review.star_rating);
@@ -76,6 +97,11 @@ export default function MediaDetailsPage() {
   }, [params.id, params.type]);
 
   const addToCollection = async () => {
+    if (collectionItem) {
+      setMessage("Already in your collection.");
+      return;
+    }
+
     setPending(true);
     const response = await fetch("/api/collection", {
       method: "POST",
@@ -86,10 +112,16 @@ export default function MediaDetailsPage() {
         status,
       }),
     });
+    const data = (await response.json()) as { item?: CollectionItem };
     setPending(false);
     if (!response.ok) {
       setMessage("Could not add to collection.");
       return;
+    }
+
+    if (data.item) {
+      setCollectionItem(data.item);
+      setStatus(data.item.status);
     }
     setMessage("Added to your collection.");
   };
@@ -151,7 +183,8 @@ export default function MediaDetailsPage() {
               onChange={(event) =>
                 setStatus(event.target.value as CollectionStatus)
               }
-              className="rounded px-3 py-2"
+              disabled={Boolean(collectionItem)}
+              className="rounded px-3 py-2 disabled:opacity-60"
             >
               <option value="wishlist">Wishlist</option>
               <option value="currently_watching">Currently Watching</option>
@@ -159,12 +192,17 @@ export default function MediaDetailsPage() {
             </select>
             <button
               onClick={addToCollection}
-              disabled={pending}
+              disabled={pending || Boolean(collectionItem)}
               className="rounded bg-emerald-600 px-4 py-2 font-medium hover:bg-emerald-500 disabled:opacity-60"
             >
-              Add to my collection
+              {collectionItem ? "✓ Added" : "Add to my collection"}
             </button>
           </div>
+          {collectionItem && (
+            <p className="text-sm text-emerald-300">
+              Already in your collection ({collectionItem.status.replace("_", " ")}).
+            </p>
+          )}
         </div>
       </div>
 
