@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import type { CollectionStatus, MediaType } from "@/lib/types";
 
 type PublicProfileData = {
@@ -25,9 +26,30 @@ type PublicProfileData = {
   }>;
 };
 
+type TmdbDetailsResponse = {
+  details?: {
+    title: string;
+    posterPath: string | null;
+  };
+};
+
+type DetailMap = Record<string, { title: string; posterPath: string | null }>;
+
+function mediaKey(mediaType: MediaType, tmdbId: number) {
+  return `${mediaType}:${tmdbId}`;
+}
+
+function posterUrl(path: string | null) {
+  if (!path) {
+    return "https://placehold.co/120x180?text=No+Poster";
+  }
+  return `https://image.tmdb.org/t/p/w342${path}`;
+}
+
 export default function PublicProfilePage() {
   const params = useParams<{ username: string }>();
   const [data, setData] = useState<PublicProfileData | null>(null);
+  const [detailsByKey, setDetailsByKey] = useState<DetailMap>({});
   const [typeFilter, setTypeFilter] = useState<"all" | MediaType>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | CollectionStatus>(
     "all",
@@ -40,6 +62,69 @@ export default function PublicProfilePage() {
       .then((json: PublicProfileData) => setData(json))
       .catch(() => setError("Could not load this profile."));
   }, [params.username]);
+
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+
+    const uniqueRefs = new Map<string, { mediaType: MediaType; tmdbId: number }>();
+
+    data.items.forEach((item) => {
+      uniqueRefs.set(mediaKey(item.media_type, item.tmdb_id), {
+        mediaType: item.media_type,
+        tmdbId: item.tmdb_id,
+      });
+    });
+
+    data.reviews.forEach((review) => {
+      uniqueRefs.set(mediaKey(review.media_type, review.tmdb_id), {
+        mediaType: review.media_type,
+        tmdbId: review.tmdb_id,
+      });
+    });
+
+    let cancelled = false;
+
+    Promise.all(
+      Array.from(uniqueRefs.values()).map(async (ref) => {
+        const key = mediaKey(ref.mediaType, ref.tmdbId);
+        const response = await fetch(
+          `/api/tmdb/details/${ref.mediaType}/${ref.tmdbId}`,
+        );
+
+        if (!response.ok) {
+          return {
+            key,
+            title: `${ref.mediaType.toUpperCase()} #${ref.tmdbId}`,
+            posterPath: null,
+          };
+        }
+
+        const json = (await response.json()) as TmdbDetailsResponse;
+        return {
+          key,
+          title: json.details?.title ?? `${ref.mediaType.toUpperCase()} #${ref.tmdbId}`,
+          posterPath: json.details?.posterPath ?? null,
+        };
+      }),
+    ).then((resolved) => {
+      if (cancelled) {
+        return;
+      }
+
+      const next: DetailMap = {};
+      resolved.forEach((entry) => {
+        next[entry.key] = { title: entry.title, posterPath: entry.posterPath };
+      });
+
+      setDetailsByKey(next);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data]);
 
   const filteredItems = useMemo(() => {
     if (!data) return [];
@@ -98,22 +183,38 @@ export default function PublicProfilePage() {
           <p className="text-sm text-zinc-400">No public items to display.</p>
         ) : (
           <ul className="space-y-2">
-            {filteredItems.map((item) => (
-              <li
-                key={item.id}
-                className="rounded border border-zinc-800 bg-zinc-900 p-3"
-              >
-                <Link
-                  href={`/media/${item.media_type}/${item.tmdb_id}`}
-                  className="hover:underline"
+            {filteredItems.map((item) => {
+              const key = mediaKey(item.media_type, item.tmdb_id);
+              const details = detailsByKey[key];
+
+              return (
+                <li
+                  key={item.id}
+                  className="rounded border border-zinc-800 bg-zinc-900 p-3"
                 >
-                  {item.media_type.toUpperCase()} #{item.tmdb_id}
-                </Link>
-                <p className="text-sm text-zinc-300">
-                  {item.status.replace("_", " ")}
-                </p>
-              </li>
-            ))}
+                  <div className="flex items-start gap-3">
+                    <Image
+                      src={posterUrl(details?.posterPath ?? null)}
+                      alt={`${details?.title ?? "Media"} poster`}
+                      width={60}
+                      height={90}
+                      className="rounded object-cover"
+                    />
+                    <div className="space-y-1">
+                      <Link
+                        href={`/media/${item.media_type}/${item.tmdb_id}`}
+                        className="font-medium hover:underline"
+                      >
+                        {details?.title ?? `${item.media_type.toUpperCase()} #${item.tmdb_id}`}
+                      </Link>
+                      <p className="text-sm text-zinc-300">
+                        {item.status.replace("_", " ")}
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -124,23 +225,39 @@ export default function PublicProfilePage() {
           <p className="text-sm text-zinc-400">No public reviews yet.</p>
         ) : (
           <ul className="space-y-2">
-            {data.reviews.map((review) => (
-              <li
-                key={review.id}
-                className="rounded border border-zinc-800 bg-zinc-900 p-3"
-              >
-                <Link
-                  href={`/media/${review.media_type}/${review.tmdb_id}`}
-                  className="font-medium hover:underline"
+            {data.reviews.map((review) => {
+              const key = mediaKey(review.media_type, review.tmdb_id);
+              const details = detailsByKey[key];
+
+              return (
+                <li
+                  key={review.id}
+                  className="rounded border border-zinc-800 bg-zinc-900 p-3"
                 >
-                  {review.media_type.toUpperCase()} #{review.tmdb_id}
-                </Link>
-                <p className="text-sm text-zinc-300">
-                  {"★".repeat(review.star_rating)}
-                </p>
-                <p className="text-sm">{review.review_text}</p>
-              </li>
-            ))}
+                  <div className="flex items-start gap-3">
+                    <Image
+                      src={posterUrl(details?.posterPath ?? null)}
+                      alt={`${details?.title ?? "Media"} poster`}
+                      width={60}
+                      height={90}
+                      className="rounded object-cover"
+                    />
+                    <div className="space-y-1">
+                      <Link
+                        href={`/media/${review.media_type}/${review.tmdb_id}`}
+                        className="font-medium hover:underline"
+                      >
+                        {details?.title ?? `${review.media_type.toUpperCase()} #${review.tmdb_id}`}
+                      </Link>
+                      <p className="text-sm text-zinc-300">
+                        {"★".repeat(review.star_rating)}
+                      </p>
+                      <p className="text-sm">{review.review_text}</p>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

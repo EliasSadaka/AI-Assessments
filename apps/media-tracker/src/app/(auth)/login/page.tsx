@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -22,11 +22,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [showVerifyMessage, setShowVerifyMessage] = useState(false);
 
-  useEffect(() => {
+  const showVerifyMessage = useMemo(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
     const params = new URLSearchParams(window.location.search);
-    setShowVerifyMessage(params.get("verify") === "1");
+    return params.get("verify") === "1";
   }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
