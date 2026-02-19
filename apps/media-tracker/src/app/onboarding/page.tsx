@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -15,6 +16,15 @@ export default function OnboardingPage() {
     event.preventDefault();
     setPending(true);
     setError(null);
+    const supabase = createSupabaseBrowserClient();
+    const { data: sessionData } = await supabase.auth.getSession();
+
+    if (!sessionData.session) {
+      setPending(false);
+      setError("Please log in before finishing profile setup.");
+      router.push("/login");
+      return;
+    }
 
     const response = await fetch("/api/profile", {
       method: "POST",

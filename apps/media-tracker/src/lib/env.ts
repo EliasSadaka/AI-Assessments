@@ -8,7 +8,13 @@ const clientEnvSchema = z.object({
 const serverEnvSchema = clientEnvSchema.extend({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   TMDB_API_KEY: z.string().min(1),
-  AI_API_KEY: z.string().min(1).optional(),
+  AI_API_KEY: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim().length === 0
+        ? undefined
+        : value,
+    z.string().min(1).optional(),
+  ),
   AI_MODEL: z.string().min(1).default("gpt-4o-mini"),
 });
 

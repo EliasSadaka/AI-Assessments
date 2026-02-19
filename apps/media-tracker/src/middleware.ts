@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { clientEnv } from "@/lib/env";
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
   const response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -27,7 +28,13 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (pathname.startsWith("/onboarding") && !user) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
   return response;
 }
 
