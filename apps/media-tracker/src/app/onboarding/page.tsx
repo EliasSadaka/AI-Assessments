@@ -8,7 +8,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [isPublic, setIsPublic] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 

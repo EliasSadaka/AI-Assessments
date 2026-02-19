@@ -16,9 +16,9 @@ type ProfileResponse = {
 export default function SettingsPage() {
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [profilePublic, setProfilePublic] = useState(false);
-  const [defaultItemPublic, setDefaultItemPublic] = useState(false);
-  const [defaultReviewPublic, setDefaultReviewPublic] = useState(false);
+  const [profilePublic, setProfilePublic] = useState(true);
+  const [defaultItemPublic, setDefaultItemPublic] = useState(true);
+  const [defaultReviewPublic, setDefaultReviewPublic] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {

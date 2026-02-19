@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     .insert({
       user_id: user.id,
       ...parsed.data,
-      is_public: parsed.data.is_public ?? profile?.default_item_public ?? false,
+      is_public: parsed.data.is_public ?? profile?.default_item_public ?? true,
     })
     .select("*")
     .single();
