@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { CollectionStatus, MediaType } from "@/lib/types";
 import type { Recommendation } from "@/lib/ai";
 
@@ -23,7 +24,17 @@ type CollectionRecord = {
   }>;
 };
 
-type DisplayMap = Record<string, { title: string }>;
+type DisplayMap = Record<
+  string,
+  { title: string; posterPath: string | null; year: string | null }
+>;
+
+function posterUrl(path: string | null) {
+  if (!path) {
+    return "https://placehold.co/300x450?text=No+Poster";
+  }
+  return `https://image.tmdb.org/t/p/w342${path}`;
+}
 
 export default function CollectionPage() {
   const [items, setItems] = useState<CollectionRecord[]>([]);
@@ -48,10 +59,12 @@ export default function CollectionPage() {
           `/api/tmdb/details/${item.media_type}/${item.tmdb_id}`,
         );
         const details = (await detailsRes.json()) as {
-          details?: { title: string };
+          details?: { title: string; posterPath: string | null; year: string | null };
         };
         resolvedTitles[`${item.media_type}-${item.tmdb_id}`] = {
           title: details.details?.title ?? `TMDB #${item.tmdb_id}`,
+          posterPath: details.details?.posterPath ?? null,
+          year: details.details?.year ?? null,
         };
       }),
     );
@@ -187,126 +200,148 @@ export default function CollectionPage() {
       <div className="space-y-3">
         {filteredItems.map((item) => {
           const key = `${item.media_type}-${item.tmdb_id}`;
+          const display = titles[key];
           const note = item.item_notes?.[0];
           const override = item.item_overrides?.[0];
           return (
             <article
               key={item.id}
-              className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4"
+              className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-4 transition hover:border-zinc-700 hover:bg-zinc-900"
             >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-xs uppercase text-zinc-400">
-                    {item.media_type}
-                  </p>
-                  <Link
-                    href={`/media/${item.media_type}/${item.tmdb_id}`}
-                    className="font-semibold hover:underline"
-                  >
-                    {titles[key]?.title ?? `TMDB #${item.tmdb_id}`}
-                  </Link>
-                </div>
-                <button
-                  onClick={() => removeItem(item.id)}
-                  className="rounded border border-rose-500 px-3 py-1 text-sm text-rose-300 hover:bg-rose-950/40"
+              <div className="flex flex-col gap-4 sm:flex-row">
+                <Link
+                  href={`/media/${item.media_type}/${item.tmdb_id}`}
+                  className="shrink-0"
                 >
-                  Delete
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <select
-                  value={item.status}
-                  onChange={(event) =>
-                    updateItem(item.id, { status: event.target.value })
-                  }
-                  className="rounded px-2 py-1 text-sm"
-                >
-                  <option value="wishlist">Wishlist</option>
-                  <option value="currently_watching">Currently Watching</option>
-                  <option value="completed">Completed</option>
-                </select>
-                <label className="flex items-center gap-1 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={item.is_public}
-                    onChange={(event) =>
-                      updateItem(item.id, { is_public: event.target.checked })
-                    }
+                  <Image
+                    src={posterUrl(display?.posterPath ?? null)}
+                    alt={`${display?.title ?? `TMDB #${item.tmdb_id}`} poster`}
+                    width={96}
+                    height={144}
+                    className="h-36 w-24 rounded-md border border-zinc-800 object-cover"
                   />
-                  Public
-                </label>
-              </div>
-              <div className="grid gap-2 md:grid-cols-3">
-                <input
-                  type="number"
-                  defaultValue={note?.rating ?? ""}
-                  min={1}
-                  max={5}
-                  placeholder="Rating 1-5"
-                  onBlur={(event) =>
-                    updateItem(item.id, {
-                      rating: event.target.value
-                        ? Number(event.target.value)
-                        : null,
-                    })
-                  }
-                  className="rounded px-3 py-2 text-sm"
-                />
-                <input
-                  defaultValue={note?.tags?.join(", ") ?? ""}
-                  placeholder="Tags comma separated"
-                  onBlur={(event) =>
-                    updateItem(item.id, {
-                      tags: event.target.value
-                        ? event.target.value
-                            .split(",")
-                            .map((value) => value.trim())
-                            .filter(Boolean)
-                        : [],
-                    })
-                  }
-                  className="rounded px-3 py-2 text-sm"
-                />
-                <input
-                  defaultValue={note?.notes ?? ""}
-                  placeholder="Quick notes"
-                  onBlur={(event) =>
-                    updateItem(item.id, { notes: event.target.value || null })
-                  }
-                  className="rounded px-3 py-2 text-sm"
-                />
-              </div>
-              <div className="grid gap-2 md:grid-cols-3">
-                <input
-                  defaultValue={override?.custom_title ?? ""}
-                  placeholder="Custom title (optional)"
-                  onBlur={(event) =>
-                    updateItem(item.id, {
-                      custom_title: event.target.value || null,
-                    })
-                  }
-                  className="rounded px-3 py-2 text-sm"
-                />
-                <input
-                  defaultValue={override?.custom_creator ?? ""}
-                  placeholder="Custom creator (optional)"
-                  onBlur={(event) =>
-                    updateItem(item.id, {
-                      custom_creator: event.target.value || null,
-                    })
-                  }
-                  className="rounded px-3 py-2 text-sm"
-                />
-                <input
-                  defaultValue={override?.custom_release_date ?? ""}
-                  placeholder="Custom release date (YYYY-MM-DD)"
-                  onBlur={(event) =>
-                    updateItem(item.id, {
-                      custom_release_date: event.target.value || null,
-                    })
-                  }
-                  className="rounded px-3 py-2 text-sm"
-                />
+                </Link>
+
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs uppercase text-zinc-400">
+                        {item.media_type}
+                        {display?.year ? ` - ${display.year}` : ""}
+                      </p>
+                      <Link
+                        href={`/media/${item.media_type}/${item.tmdb_id}`}
+                        className="font-semibold hover:underline"
+                      >
+                        {display?.title ?? `TMDB #${item.tmdb_id}`}
+                      </Link>
+                    </div>
+                    <button
+                      onClick={() => removeItem(item.id)}
+                      className="rounded border border-rose-500 px-3 py-1 text-sm text-rose-300 hover:bg-rose-950/40"
+                    >
+                      Delete
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      value={item.status}
+                      onChange={(event) =>
+                        updateItem(item.id, { status: event.target.value })
+                      }
+                      className="rounded px-2 py-1 text-sm"
+                    >
+                      <option value="wishlist">Wishlist</option>
+                      <option value="currently_watching">Currently Watching</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                    <label className="flex items-center gap-1 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={item.is_public}
+                        onChange={(event) =>
+                          updateItem(item.id, { is_public: event.target.checked })
+                        }
+                      />
+                      Public
+                    </label>
+                  </div>
+
+                  <div className="grid gap-2 md:grid-cols-3">
+                    <input
+                      type="number"
+                      defaultValue={note?.rating ?? ""}
+                      min={1}
+                      max={5}
+                      placeholder="Rating 1-5"
+                      onBlur={(event) =>
+                        updateItem(item.id, {
+                          rating: event.target.value
+                            ? Number(event.target.value)
+                            : null,
+                        })
+                      }
+                      className="rounded px-3 py-2 text-sm"
+                    />
+                    <input
+                      defaultValue={note?.tags?.join(", ") ?? ""}
+                      placeholder="Tags comma separated"
+                      onBlur={(event) =>
+                        updateItem(item.id, {
+                          tags: event.target.value
+                            ? event.target.value
+                                .split(",")
+                                .map((value) => value.trim())
+                                .filter(Boolean)
+                            : [],
+                        })
+                      }
+                      className="rounded px-3 py-2 text-sm"
+                    />
+                    <input
+                      defaultValue={note?.notes ?? ""}
+                      placeholder="Quick notes"
+                      onBlur={(event) =>
+                        updateItem(item.id, { notes: event.target.value || null })
+                      }
+                      className="rounded px-3 py-2 text-sm"
+                    />
+                  </div>
+
+                  <div className="grid gap-2 md:grid-cols-3">
+                    <input
+                      defaultValue={override?.custom_title ?? ""}
+                      placeholder="Custom title (optional)"
+                      onBlur={(event) =>
+                        updateItem(item.id, {
+                          custom_title: event.target.value || null,
+                        })
+                      }
+                      className="rounded px-3 py-2 text-sm"
+                    />
+                    <input
+                      defaultValue={override?.custom_creator ?? ""}
+                      placeholder="Custom creator (optional)"
+                      onBlur={(event) =>
+                        updateItem(item.id, {
+                          custom_creator: event.target.value || null,
+                        })
+                      }
+                      className="rounded px-3 py-2 text-sm"
+                    />
+                    <input
+                      defaultValue={override?.custom_release_date ?? ""}
+                      placeholder="Custom release date (YYYY-MM-DD)"
+                      onBlur={(event) =>
+                        updateItem(item.id, {
+                          custom_release_date: event.target.value || null,
+                        })
+                      }
+                      className="rounded px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
               </div>
             </article>
           );
