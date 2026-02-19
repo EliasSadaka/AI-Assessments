@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type ResolveIdentifierResponse = {
@@ -18,53 +18,16 @@ type ProfileResponse = {
 
 export default function LoginPage() {
   const router = useRouter();
-  // #region agent log
-  fetch("http://127.0.0.1:7242/ingest/0981c094-6cec-4b05-9c41-eb0bd6157028", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "41124e",
-    },
-    body: JSON.stringify({
-      sessionId: "41124e",
-      runId: "pre-fix",
-      hypothesisId: "H1",
-      location: "src/app/(auth)/login/page.tsx:22",
-      message: "LoginPage render started",
-      data: { component: "LoginPage" },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-  const searchParams = useSearchParams();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [showVerifyMessage, setShowVerifyMessage] = useState(false);
 
-  const showVerifyMessage = useMemo(
-    () => searchParams.get("verify") === "1",
-    [searchParams],
-  );
-
-  // #region agent log
-  fetch("http://127.0.0.1:7242/ingest/0981c094-6cec-4b05-9c41-eb0bd6157028", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "41124e",
-    },
-    body: JSON.stringify({
-      sessionId: "41124e",
-      runId: "pre-fix",
-      hypothesisId: "H2",
-      location: "src/app/(auth)/login/page.tsx:47",
-      message: "useSearchParams evaluated",
-      data: { showVerifyMessage },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setShowVerifyMessage(params.get("verify") === "1");
+  }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -84,7 +47,8 @@ export default function LoginPage() {
       body: JSON.stringify({ identifier: identifierValue }),
     });
 
-    const resolveData = (await resolveResponse.json()) as ResolveIdentifierResponse;
+    const resolveData =
+      (await resolveResponse.json()) as ResolveIdentifierResponse;
     if (!resolveResponse.ok) {
       setPending(false);
       setError(resolveData.error ?? "Could not complete login.");
