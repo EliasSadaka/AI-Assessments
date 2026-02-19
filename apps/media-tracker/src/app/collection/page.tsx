@@ -115,6 +115,9 @@ export default function CollectionPage() {
       return;
     }
     setRecommendations(data.recommendations ?? []);
+    if ((data.recommendations?.length ?? 0) === 0) {
+      setMessage("No AI picks returned. Add AI_API_KEY to enable recommendations.");
+    }
   };
 
   const addRecommendationToCurrent = async (recommendation: Recommendation) => {
