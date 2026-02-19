@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       username: payload.username.toLowerCase(),
       display_name: payload.display_name,
-      profile_public: payload.profile_public ?? false,
+      profile_public: payload.profile_public ?? true,
     },
     { onConflict: "user_id" },
   );
@@ -97,9 +97,9 @@ export async function PATCH(request: Request) {
       user_id: user.id,
       username: payload.username.toLowerCase(),
       display_name: payload.display_name,
-      profile_public: payload.profile_public ?? false,
-      default_item_public: payload.default_item_public ?? false,
-      default_review_public: payload.default_review_public ?? false,
+      profile_public: payload.profile_public ?? true,
+      default_item_public: payload.default_item_public ?? true,
+      default_review_public: payload.default_review_public ?? true,
     },
     { onConflict: "user_id" },
   );

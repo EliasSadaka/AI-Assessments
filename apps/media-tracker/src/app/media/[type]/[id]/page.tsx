@@ -16,6 +16,18 @@ type Review = {
   username?: string;
 };
 
+function renderStars(rating: number) {
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
+      {Array.from({ length: 5 }).map((_, index) => (
+        <span key={index} className={index < rating ? "text-amber-400" : "text-zinc-600"}>
+          ★
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export default function MediaDetailsPage() {
   const params = useParams<{ type: MediaType; id: string }>();
   const [details, setDetails] = useState<NormalizedMediaItem | null>(null);
@@ -127,8 +139,7 @@ export default function MediaDetailsPage() {
             {details.overview || "No overview available."}
           </p>
           <p className="text-sm text-zinc-400">
-            {details.year ?? "Unknown year"} -{" "}
-            {details.genres.join(", ") || "No genres"}
+            {details.year ?? "Unknown year"} - {details.genres.join(", ") || "No genres"}
           </p>
           <p className="text-sm text-zinc-300">
             Creator/Director: {creator ?? "Not listed"}
@@ -159,17 +170,25 @@ export default function MediaDetailsPage() {
 
       <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
         <h2 className="text-xl font-semibold">Your review (one per title)</h2>
-        <label className="block space-y-1">
-          <span className="text-sm">Rating (1-5)</span>
-          <input
-            type="number"
-            min={1}
-            max={5}
-            value={stars}
-            onChange={(event) => setStars(Number(event.target.value))}
-            className="w-20 rounded px-2 py-1"
-          />
-        </label>
+        <div className="space-y-1">
+          <span className="text-sm">Rating</span>
+          <div className="inline-flex items-center gap-1">
+            {Array.from({ length: 5 }).map((_, index) => {
+              const value = index + 1;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setStars(value)}
+                  className={value <= stars ? "text-amber-400" : "text-zinc-600"}
+                  aria-label={`Set rating to ${value} stars`}
+                >
+                  ★
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <textarea
           value={reviewText}
           onChange={(event) => setReviewText(event.target.value)}
@@ -197,8 +216,9 @@ export default function MediaDetailsPage() {
                 className="rounded-lg border border-zinc-800 bg-zinc-900 p-3"
               >
                 <p className="text-sm text-zinc-300">
-                  {review.username ? `@${review.username}` : "Community review"}{" "}
-                  - {"★".repeat(review.star_rating)}
+                  {review.username ? `@${review.username}` : "Community review"}
+                  <span className="mx-2 text-zinc-500">-</span>
+                  {renderStars(review.star_rating)}
                 </p>
                 <p className="text-sm">{review.review_text}</p>
               </article>

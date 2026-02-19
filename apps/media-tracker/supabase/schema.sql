@@ -7,9 +7,9 @@ create table if not exists public.profiles (
   username text unique not null check (username ~ '^[a-zA-Z0-9_]+$'),
   display_name text,
   avatar_url text,
-  profile_public boolean not null default false,
-  default_item_public boolean not null default false,
-  default_review_public boolean not null default false,
+  profile_public boolean not null default true,
+  default_item_public boolean not null default true,
+  default_review_public boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -23,7 +23,7 @@ create table if not exists public.collection_items (
   tmdb_id integer not null,
   media_type text not null check (media_type in ('movie', 'tv')),
   status public.collection_status not null default 'wishlist',
-  is_public boolean not null default false,
+  is_public boolean not null default true,
   added_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, tmdb_id, media_type)
@@ -56,7 +56,7 @@ create table if not exists public.item_reviews (
   media_type text not null check (media_type in ('movie', 'tv')),
   review_text text not null,
   star_rating integer not null check (star_rating between 1 and 5),
-  is_public boolean not null default false,
+  is_public boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, tmdb_id, media_type)

@@ -45,9 +45,9 @@ export async function POST() {
     user_id: user.id,
     username: rawUsername.toLowerCase(),
     display_name: rawDisplayName.trim(),
-    profile_public: false,
-    default_item_public: false,
-    default_review_public: false,
+    profile_public: true,
+    default_item_public: true,
+    default_review_public: true,
   });
 
   if (error) {

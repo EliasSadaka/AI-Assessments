@@ -46,6 +46,16 @@ function posterUrl(path: string | null) {
   return `https://image.tmdb.org/t/p/w342${path}`;
 }
 
+function renderStars(rating: number) {
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
+      {Array.from({ length: 5 }).map((_, index) => (
+        <span key={index} className={index < rating ? "text-amber-400" : "text-zinc-600"}>★</span>
+      ))}
+    </span>
+  );
+}
+
 export default function PublicProfilePage() {
   const params = useParams<{ username: string }>();
   const [data, setData] = useState<PublicProfileData | null>(null);
@@ -250,7 +260,7 @@ export default function PublicProfilePage() {
                         {details?.title ?? `${review.media_type.toUpperCase()} #${review.tmdb_id}`}
                       </Link>
                       <p className="text-sm text-zinc-300">
-                        {"★".repeat(review.star_rating)}
+                        {renderStars(review.star_rating)}
                       </p>
                       <p className="text-sm">{review.review_text}</p>
                     </div>
