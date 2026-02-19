@@ -18,6 +18,24 @@ type ProfileResponse = {
 
 export default function LoginPage() {
   const router = useRouter();
+  // #region agent log
+  fetch("http://127.0.0.1:7242/ingest/0981c094-6cec-4b05-9c41-eb0bd6157028", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "41124e",
+    },
+    body: JSON.stringify({
+      sessionId: "41124e",
+      runId: "pre-fix",
+      hypothesisId: "H1",
+      location: "src/app/(auth)/login/page.tsx:22",
+      message: "LoginPage render started",
+      data: { component: "LoginPage" },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
   const searchParams = useSearchParams();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -28,6 +46,25 @@ export default function LoginPage() {
     () => searchParams.get("verify") === "1",
     [searchParams],
   );
+
+  // #region agent log
+  fetch("http://127.0.0.1:7242/ingest/0981c094-6cec-4b05-9c41-eb0bd6157028", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "41124e",
+    },
+    body: JSON.stringify({
+      sessionId: "41124e",
+      runId: "pre-fix",
+      hypothesisId: "H2",
+      location: "src/app/(auth)/login/page.tsx:47",
+      message: "useSearchParams evaluated",
+      data: { showVerifyMessage },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
