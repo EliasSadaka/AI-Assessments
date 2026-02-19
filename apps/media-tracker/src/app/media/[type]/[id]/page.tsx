@@ -1,0 +1,212 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import Image from "next/image";
+import type {
+  CollectionStatus,
+  MediaType,
+  NormalizedMediaItem,
+} from "@/lib/types";
+
+type Review = {
+  id: string;
+  review_text: string;
+  star_rating: number;
+  username?: string;
+};
+
+export default function MediaDetailsPage() {
+  const params = useParams<{ type: MediaType; id: string }>();
+  const [details, setDetails] = useState<NormalizedMediaItem | null>(null);
+  const [creator, setCreator] = useState<string | null>(null);
+  const [status, setStatus] = useState<CollectionStatus>("wishlist");
+  const [reviewText, setReviewText] = useState("");
+  const [stars, setStars] = useState(3);
+  const [message, setMessage] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [detailsRes, creditsRes, reviewsRes, myReviewRes] =
+        await Promise.all([
+          fetch(`/api/tmdb/details/${params.type}/${params.id}`),
+          fetch(`/api/tmdb/credits/${params.type}/${params.id}`),
+          fetch(`/api/reviews?tmdb_id=${params.id}&media_type=${params.type}`),
+          fetch(
+            `/api/reviews?mine=1&tmdb_id=${params.id}&media_type=${params.type}`,
+          ),
+        ]);
+      const detailsData = (await detailsRes.json()) as {
+        details?: NormalizedMediaItem;
+      };
+      const creditsData = (await creditsRes.json()) as {
+        creator?: string | null;
+      };
+      const reviewsData = (await reviewsRes.json()) as { reviews?: Review[] };
+      const myReviewData = (await myReviewRes.json()) as {
+        review?: { review_text: string; star_rating: number } | null;
+      };
+
+      setDetails(detailsData.details ?? null);
+      setCreator(creditsData.creator ?? null);
+      setReviews(reviewsData.reviews ?? []);
+      if (myReviewData.review) {
+        setReviewText(myReviewData.review.review_text);
+        setStars(myReviewData.review.star_rating);
+      }
+    };
+
+    fetchData().catch(() => {
+      setMessage("Could not load title details.");
+    });
+  }, [params.id, params.type]);
+
+  const addToCollection = async () => {
+    setPending(true);
+    const response = await fetch("/api/collection", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tmdb_id: Number(params.id),
+        media_type: params.type,
+        status,
+      }),
+    });
+    setPending(false);
+    if (!response.ok) {
+      setMessage("Could not add to collection.");
+      return;
+    }
+    setMessage("Added to your collection.");
+  };
+
+  const saveReview = async () => {
+    setPending(true);
+    const response = await fetch("/api/reviews", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tmdb_id: Number(params.id),
+        media_type: params.type,
+        review_text: reviewText,
+        star_rating: stars,
+      }),
+    });
+    setPending(false);
+    if (!response.ok) {
+      setMessage("Could not save review.");
+      return;
+    }
+    setMessage("Review saved.");
+  };
+
+  if (!details) {
+    return <p className="text-sm text-zinc-400">Loading details...</p>;
+  }
+
+  return (
+    <section className="space-y-8">
+      <div className="grid gap-6 md:grid-cols-[280px_1fr]">
+        <Image
+          src={
+            details.posterPath
+              ? `https://image.tmdb.org/t/p/w500${details.posterPath}`
+              : "https://placehold.co/400x600?text=No+Poster"
+          }
+          alt={`${details.title} poster`}
+          className="rounded-xl border border-zinc-800"
+          width={400}
+          height={600}
+        />
+        <div className="space-y-4">
+          <p className="text-sm uppercase text-zinc-400">{details.mediaType}</p>
+          <h1 className="text-3xl font-semibold">{details.title}</h1>
+          <p className="text-zinc-300">
+            {details.overview || "No overview available."}
+          </p>
+          <p className="text-sm text-zinc-400">
+            {details.year ?? "Unknown year"} -{" "}
+            {details.genres.join(", ") || "No genres"}
+          </p>
+          <p className="text-sm text-zinc-300">
+            Creator/Director: {creator ?? "Not listed"}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={status}
+              onChange={(event) =>
+                setStatus(event.target.value as CollectionStatus)
+              }
+              className="rounded px-3 py-2"
+            >
+              <option value="wishlist">Wishlist</option>
+              <option value="currently_watching">Currently Watching</option>
+              <option value="completed">Completed</option>
+            </select>
+            <button
+              onClick={addToCollection}
+              disabled={pending}
+              className="rounded bg-emerald-600 px-4 py-2 font-medium hover:bg-emerald-500 disabled:opacity-60"
+            >
+              Add to my collection
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+        <h2 className="text-xl font-semibold">Your review (one per title)</h2>
+        <label className="block space-y-1">
+          <span className="text-sm">Rating (1-5)</span>
+          <input
+            type="number"
+            min={1}
+            max={5}
+            value={stars}
+            onChange={(event) => setStars(Number(event.target.value))}
+            className="w-20 rounded px-2 py-1"
+          />
+        </label>
+        <textarea
+          value={reviewText}
+          onChange={(event) => setReviewText(event.target.value)}
+          placeholder="Write your review..."
+          className="min-h-28 w-full rounded px-3 py-2"
+        />
+        <button
+          onClick={saveReview}
+          disabled={pending || !reviewText.trim()}
+          className="rounded bg-emerald-600 px-4 py-2 font-medium hover:bg-emerald-500 disabled:opacity-60"
+        >
+          Save review
+        </button>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-xl font-semibold">Public reviews</h2>
+        {reviews.length === 0 ? (
+          <p className="text-sm text-zinc-400">No public reviews yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {reviews.map((review) => (
+              <article
+                key={review.id}
+                className="rounded-lg border border-zinc-800 bg-zinc-900 p-3"
+              >
+                <p className="text-sm text-zinc-300">
+                  {review.username ? `@${review.username}` : "Community review"}{" "}
+                  - {"★".repeat(review.star_rating)}
+                </p>
+                <p className="text-sm">{review.review_text}</p>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+      {message && <p className="text-sm text-emerald-300">{message}</p>}
+    </section>
+  );
+}
