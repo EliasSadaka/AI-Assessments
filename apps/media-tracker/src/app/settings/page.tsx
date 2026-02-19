@@ -9,7 +9,8 @@ type ProfileResponse = {
     profile_public: boolean;
     default_item_public?: boolean;
     default_review_public?: boolean;
-  };
+  } | null;
+  error?: string;
 };
 
 export default function SettingsPage() {
@@ -35,6 +36,18 @@ export default function SettingsPage() {
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setMessage(null);
+
+    if (!username.trim()) {
+      setMessage("Username is required.");
+      return;
+    }
+
+    if (!displayName.trim()) {
+      setMessage("Display name is required.");
+      return;
+    }
+
     const response = await fetch("/api/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -46,9 +59,9 @@ export default function SettingsPage() {
         default_review_public: defaultReviewPublic,
       }),
     });
-    setMessage(
-      response.ok ? "Settings updated." : "Could not update settings.",
-    );
+
+    const data = (await response.json()) as { error?: string };
+    setMessage(response.ok ? "Settings updated." : data.error ?? "Could not update settings.");
   };
 
   return (
@@ -61,6 +74,10 @@ export default function SettingsPage() {
         <label className="block space-y-1">
           <span className="text-sm">Username</span>
           <input
+            required
+            minLength={3}
+            maxLength={24}
+            pattern="[A-Za-z0-9_]+"
             value={username}
             onChange={(event) => setUsername(event.target.value)}
             className="w-full rounded px-3 py-2"
@@ -69,6 +86,9 @@ export default function SettingsPage() {
         <label className="block space-y-1">
           <span className="text-sm">Display name</span>
           <input
+            required
+            minLength={1}
+            maxLength={50}
             value={displayName}
             onChange={(event) => setDisplayName(event.target.value)}
             className="w-full rounded px-3 py-2"
