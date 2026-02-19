@@ -16,6 +16,13 @@ export default function OnboardingPage() {
     event.preventDefault();
     setPending(true);
     setError(null);
+
+    if (!displayName.trim()) {
+      setPending(false);
+      setError("Display name is required.");
+      return;
+    }
+
     const supabase = createSupabaseBrowserClient();
     const { data: sessionData } = await supabase.auth.getSession();
 
@@ -31,7 +38,7 @@ export default function OnboardingPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         username,
-        display_name: displayName || undefined,
+        display_name: displayName,
         profile_public: isPublic,
       }),
     });
@@ -52,7 +59,7 @@ export default function OnboardingPage() {
     <section className="mx-auto max-w-lg space-y-5 rounded-xl border border-zinc-800 bg-zinc-900 p-6">
       <h1 className="text-2xl font-semibold">Set up your profile</h1>
       <p className="text-sm text-zinc-300">
-        Choose a username so others can discover your public collection.
+        Username and display name are required before you can continue.
       </p>
       <form onSubmit={onSubmit} className="space-y-4">
         <label className="block space-y-1">
@@ -60,6 +67,8 @@ export default function OnboardingPage() {
           <input
             required
             minLength={3}
+            maxLength={24}
+            pattern="[A-Za-z0-9_]+"
             value={username}
             onChange={(event) => setUsername(event.target.value)}
             className="w-full rounded px-3 py-2"
@@ -68,6 +77,9 @@ export default function OnboardingPage() {
         <label className="block space-y-1">
           <span className="text-sm">Display name</span>
           <input
+            required
+            minLength={1}
+            maxLength={50}
             value={displayName}
             onChange={(event) => setDisplayName(event.target.value)}
             className="w-full rounded px-3 py-2"

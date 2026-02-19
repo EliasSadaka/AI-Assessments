@@ -5,10 +5,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 const upsertProfileSchema = z.object({
   username: z
     .string()
+    .trim()
     .min(3)
     .max(24)
     .regex(/^[a-zA-Z0-9_]+$/),
-  display_name: z.string().max(50).optional(),
+  display_name: z.string().trim().min(1).max(50),
   profile_public: z.boolean().optional(),
 });
 
@@ -26,9 +27,9 @@ export async function GET() {
     .from("profiles")
     .select("*")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (error) {
+  if (error && error.code !== "PGRST116") {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
     {
       user_id: user.id,
       username: payload.username.toLowerCase(),
-      display_name: payload.display_name ?? null,
+      display_name: payload.display_name,
       profile_public: payload.profile_public ?? false,
     },
     { onConflict: "user_id" },
@@ -81,7 +82,6 @@ export async function PATCH(request: Request) {
 
   const json = await request.json();
   const parsed = upsertProfileSchema
-    .partial()
     .extend({
       default_item_public: z.boolean().optional(),
       default_review_public: z.boolean().optional(),
@@ -91,10 +91,18 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
-  const { error } = await supabase
-    .from("profiles")
-    .update(parsed.data)
-    .eq("user_id", user.id);
+  const payload = parsed.data;
+  const { error } = await supabase.from("profiles").upsert(
+    {
+      user_id: user.id,
+      username: payload.username.toLowerCase(),
+      display_name: payload.display_name,
+      profile_public: payload.profile_public ?? false,
+      default_item_public: payload.default_item_public ?? false,
+      default_review_public: payload.default_review_public ?? false,
+    },
+    { onConflict: "user_id" },
+  );
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
